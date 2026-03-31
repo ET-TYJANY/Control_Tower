@@ -1,0 +1,3 @@
+{% extends "logistics/generic_form.html" %}
+{% block form_title %}{% if form.instance.pk %}Modifier le dépôt {{ form.instance.name }}{% else %}Ajouter un dépôt{% endif %}{% endblock %}
+{% block cancel_url %}{% url 'logistics:depot_list' %}{% endblock %}

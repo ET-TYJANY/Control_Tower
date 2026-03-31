@@ -1,0 +1,3 @@
+{% extends "logistics/generic_form.html" %}
+{% block form_title %}{% if form.instance.pk %}Modifier le camion {{ form.instance.matricule }}{% else %}Ajouter un camion{% endif %}{% endblock %}
+{% block cancel_url %}{% url 'logistics:truck_list' %}{% endblock %}

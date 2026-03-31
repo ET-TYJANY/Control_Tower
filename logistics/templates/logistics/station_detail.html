@@ -1,0 +1,98 @@
+{% extends "logistics/base.html" %}
+{% block title %}Station {{ station.name }} - Control Tower{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">{{ station.name }}</h1>
+    <div>
+        <a href="{% url 'logistics:station_update' station.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
+        <a href="{% url 'logistics:station_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Informations générales</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Ville :</th><td>{{ station.city }}</td></tr>
+                    <tr><th>Région :</th><td>{{ station.region }}</td></tr>
+                    <tr><th>Adresse :</th><td>{{ station.address|linebreaksbr|default:"-" }}</td></tr>
+                    <tr><th>Coordonnées :</th><td>{{ station.latitude }}, {{ station.longitude }}</td></tr>
+                    <tr><th>Consommation journalière :</th><td>{{ station.daily_consumption }} L</td></tr>
+                    <tr><th>Niveau de risque :</th><td><span class="badge {% if station.risk_level == 'CRITICAL' %}bg-danger{% elif station.risk_level == 'WARNING' %}bg-warning{% else %}bg-success{% endif %}">{{ station.get_risk_level_display }}</span></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Cuves</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th>Nom</th><th>Produit</th><th>Volume actuel (L)</th><th>Capacité (L)</th><th>%</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for tank in station.tanks.all %}
+                            <tr>
+                                <td>{{ tank.tank_name }}</td>
+                                <td>{{ tank.get_product_display }}</td>
+                                <td>{{ tank.current_volume|floatformat:0 }}</td>
+                                <td>{{ tank.max_capacity|floatformat:0 }}</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar {% if tank.current_volume < 8000 %}bg-danger{% elif tank.current_volume < 15000 %}bg-warning{% else %}bg-success{% endif %}"
+                                             style="width: {{ tank.current_volume|floatformat:0 }}%">
+                                            {{ tank.current_volume|floatformat:0 }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center">Aucune cuve associée.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Derniers snapshots TLS</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr><th>Cuve</th><th>Volume (L)</th><th>Température (°C)</th><th>Eau (L)</th><th>Capteur</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                    {% for tank in station.tanks.all %}
+                        {% for snapshot in tank.tls_snapshots.all|slice:":5" %}
+                        <tr>
+                            <td>{{ tank.tank_name }}</td>
+                            <td>{{ snapshot.current_volume|floatformat:0 }}</td>
+                            <td>{{ snapshot.temperature }}</td>
+                            <td>{{ snapshot.water_level }}</td>
+                            <td><span class="badge {% if snapshot.sensor_status == 'OK' %}bg-success{% elif snapshot.sensor_status == 'WARNING' %}bg-warning{% else %}bg-danger{% endif %}">{{ snapshot.get_sensor_status_display }}</span></td>
+                            <td>{{ snapshot.updated_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center">Aucun snapshot TLS.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

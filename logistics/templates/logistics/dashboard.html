@@ -1,0 +1,284 @@
+{% extends "logistics/base.html" %}
+{% block title %}Dashboard - Control Tower{% endblock %}
+
+{% block content %}
+<h1 class="h2 mb-4">Tableau de bord</h1>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-2">
+        <div class="card card-stats shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Missions totales</h6>
+                        <h2 class="mb-0">{{ total_missions }}</h2>
+                    </div>
+                    <i class="fas fa-truck-fast fa-2x text-primary opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card card-stats shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Camions actifs</h6>
+                        <h2 class="mb-0">{{ active_trucks }}</h2>
+                    </div>
+                    <i class="fas fa-truck fa-2x text-success opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card card-stats shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Stations</h6>
+                        <h2 class="mb-0">{{ total_stations }}</h2>
+                    </div>
+                    <i class="fas fa-gas-pump fa-2x text-info opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card card-stats shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Dépôts</h6>
+                        <h2 class="mb-0">{{ total_depots }}</h2>
+                    </div>
+                    <i class="fas fa-warehouse fa-2x text-dark opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card card-stats shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Alertes carburant</h6>
+                        <h2 class="mb-0">{{ low_fuel_alerts }}</h2>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x text-warning opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card card-stats shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Alertes critiques</h6>
+                        <h2 class="mb-0">{{ critical_alerts }}</h2>
+                    </div>
+                    <i class="fas fa-bell fa-2x text-danger opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Statut des missions</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="missionsChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Répartition des alertes</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="alertsChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Dernières missions</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Camion</th>
+                                <th>Dépôt</th>
+                                <th>Destination</th>
+                                <th>Statut</th>
+                                <th>Date départ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mission in recent_missions %}
+                            <tr>
+                                <td>{{ mission.truck.matricule }}</td>
+                                <td>{{ mission.depot.name }}</td>
+                                <td>{{ mission.station.name }}</td>
+                                <td>
+                                    <span class="badge status-{{ mission.status }}">
+                                        {{ mission.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ mission.departure_time|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">Aucune mission récente</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Dépôts</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Ville</th>
+                                <th>Capacité</th>
+                                <th>Remplissage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for depot in depots %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'logistics:depot_detail' depot.pk %}">
+                                        {{ depot.name }}
+                                    </a>
+                                </td>
+                                <td>{{ depot.city }}</td>
+                                <td>{{ depot.capacity_total|floatformat:0 }} L</td>
+                                <td>
+                                    <div class="progress" style="height: 18px;">
+                                        <div class="progress-bar
+                                            {% if depot.get_fill_percentage < 20 %}bg-danger
+                                            {% elif depot.get_fill_percentage < 50 %}bg-warning
+                                            {% else %}bg-success
+                                            {% endif %}"
+                                            style="width: {{ depot.get_fill_percentage|floatformat:0 }}%;">
+                                            {{ depot.get_fill_percentage|floatformat:0 }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">Aucun dépôt trouvé</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Stocks par dépôt</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="depotsChart" height="110"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const missionsChart = document.getElementById('missionsChart');
+    new Chart(missionsChart, {
+        type: 'doughnut',
+        data: {
+            labels: ['Planifiées', 'En transit', 'Terminées', 'Annulées'],
+            datasets: [{
+                data: [
+                    {{ missions_planned|default:0 }},
+                    {{ missions_in_transit|default:0 }},
+                    {{ missions_completed|default:0 }},
+                    {{ missions_cancelled|default:0 }}
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    const alertsChart = document.getElementById('alertsChart');
+    new Chart(alertsChart, {
+        type: 'bar',
+        data: {
+            labels: ['Carburant', 'Retard', 'Déviation', 'Critiques'],
+            datasets: [{
+                label: 'Nombre',
+                data: [
+                    {{ low_fuel_alerts|default:0 }},
+                    {{ delay_alerts|default:0 }},
+                    {{ deviation_alerts|default:0 }},
+                    {{ critical_alerts|default:0 }}
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    const depotsChart = document.getElementById('depotsChart');
+    new Chart(depotsChart, {
+        type: 'bar',
+        data: {
+            labels: [{% for depot in depots %}'{{ depot.name|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                label: 'Capacité utilisée (%)',
+                data: [{% for depot in depots %}{{ depot.get_fill_percentage|floatformat:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+</script>
+{% endblock %}

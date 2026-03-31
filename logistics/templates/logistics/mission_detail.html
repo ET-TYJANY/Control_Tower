@@ -1,0 +1,68 @@
+{% extends "logistics/base.html" %}
+{% block title %}Mission #{{ mission.id }} - Control Tower{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">Mission #{{ mission.id }}</h1>
+    <div>
+        <a href="{% url 'logistics:mission_update' mission.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
+        <a href="{% url 'logistics:mission_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Informations générales</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Camion :</th><td>{{ mission.truck.matricule }}</td></tr>
+                    <tr><th>Chauffeur :</th><td>{{ mission.truck.driver.name }}</td></tr>
+                    <tr><th>Dépôt :</th><td>{{ mission.depot.name }} ({{ mission.depot.city }})</td></tr>
+                    <tr><th>Station :</th><td>{{ mission.station.name }} ({{ mission.station.city }})</td></tr>
+                    <tr><th>Statut :</th><td><span class="badge status-{{ mission.status }}">{{ mission.get_status_display }}</span></td></tr>
+                    <tr><th>Notes :</th><td>{{ mission.notes|default:"-" }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Planification</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Distance totale :</th><td>{{ mission.total_distance_km }} km</td></tr>
+                    <tr><th>Durée estimée :</th><td>{{ mission.estimated_duration_minutes }} min</td></tr>
+                    <tr><th>Départ prévu :</th><td>{{ mission.departure_time|date:"d/m/Y H:i" }}</td></tr>
+                    <tr><th>ETA :</th><td>{{ mission.eta|date:"d/m/Y H:i" }}</td></tr>
+                    <tr><th>Départ réel :</th><td>{{ mission.actual_departure_time|date:"d/m/Y H:i"|default:"-" }}</td></tr>
+                    <tr><th>Arrivée réelle :</th><td>{{ mission.actual_arrival_time|date:"d/m/Y H:i"|default:"-" }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Suivi de mission</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Paramètre</th><th>Valeur</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Distance restante</td><td>{{ mission.remaining_distance_km }} km</td></tr>
+                <tr><td>Distance parcourue</td><td>{{ mission.traveled_distance_km }} km</td></tr>
+                <tr><td>Progression</td><td>{{ mission.get_progress_percentage|floatformat:1 }}%</td></tr>
+                <tr><td>Déviation</td><td>{{ mission.deviation_km }} km</td></tr>
+                <tr><td>Quantité livrée</td><td>{{ mission.delivered_quantity|default:"-" }} L</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

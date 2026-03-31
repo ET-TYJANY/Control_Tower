@@ -1,0 +1,3 @@
+{% extends "logistics/generic_form.html" %}
+{% block form_title %}{% if form.instance.pk %}Modifier la station {{ form.instance.name }}{% else %}Ajouter une station{% endif %}{% endblock %}
+{% block cancel_url %}{% url 'logistics:station_list' %}{% endblock %}

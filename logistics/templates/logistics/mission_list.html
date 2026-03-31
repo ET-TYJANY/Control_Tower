@@ -1,0 +1,56 @@
+{% extends "logistics/base.html" %}
+{% block title %}Missions - Control Tower{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">Missions</h1>
+    <a href="{% url 'logistics:mission_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nouvelle mission
+    </a>
+</div>
+
+<form method="get" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="search" class="form-control" placeholder="Rechercher par camion, dépôt ou station..." value="{{ request.GET.search }}">
+        <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Camion</th>
+                <th>Dépôt</th>
+                <th>Station</th>
+                <th>Distance (km)</th>
+                <th>Départ</th>
+                <th>Statut</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mission in missions %}
+            <tr>
+                <td>{{ mission.id }}</td>
+                <td>{{ mission.truck.matricule }}</td>
+                <td>{{ mission.depot.name }}</td>
+                <td>{{ mission.station.name }}</td>
+                <td>{{ mission.total_distance_km|floatformat:0 }}</td>
+                <td>{{ mission.departure_time|date:"d/m/Y H:i" }}</td>
+                <td><span class="badge status-{{ mission.status }}">{{ mission.get_status_display }}</span></td>
+                <td>
+                    <a href="{% url 'logistics:mission_detail' mission.pk %}" class="btn btn-sm btn-info" title="Détail"><i class="fas fa-eye"></i></a>
+                    <a href="{% url 'logistics:mission_update' mission.pk %}" class="btn btn-sm btn-warning" title="Modifier"><i class="fas fa-edit"></i></a>
+                    <a href="{% url 'logistics:mission_delete' mission.pk %}" class="btn btn-sm btn-danger" title="Supprimer"><i class="fas fa-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center">Aucune mission trouvée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include "logistics/_pagination.html" %}
+{% endblock %}

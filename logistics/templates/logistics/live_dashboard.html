@@ -1,0 +1,433 @@
+{% extends "logistics/base.html" %}
+
+{% block title %}Live Dashboard | Control Tower{% endblock %}
+
+{% block page_title %}Live Dashboard{% endblock %}
+{% block page_subtitle %}Suivi temps réel des camions, dépôts et stations{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Styles spécifiques au live dashboard */
+  .truck-list, .depot-list, .station-list {
+    max-height: 450px;
+  }
+  
+  .custom-truck-icon, .custom-depot-icon, .custom-station-icon {
+    background: transparent;
+    border: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="card">
+    <div class="kpi-title"><i class="fas fa-truck"></i> Camions actifs</div>
+    <div class="kpi-value" id="truck-count">0</div>
+  </div>
+  <div class="card">
+    <div class="kpi-title"><i class="fas fa-warehouse"></i> Dépôts</div>
+    <div class="kpi-value" id="depot-count">0</div>
+  </div>
+  <div class="card">
+    <div class="kpi-title"><i class="fas fa-gas-pump"></i> Stations</div>
+    <div class="kpi-value" id="station-count">0</div>
+  </div>
+  <div class="card">
+    <div class="kpi-title"><i class="fas fa-exclamation-triangle"></i> Alertes actives</div>
+    <div class="kpi-value" id="alert-count" style="color: #ef4444;">0</div>
+  </div>
+</div>
+
+<div class="updated-at">
+  <i class="fas fa-sync-alt"></i> Dernière synchronisation : <span id="last-update">--</span>
+</div>
+
+<div class="section">
+  <h2><i class="fas fa-truck-fast"></i> Mouvements en temps réel</h2>
+  <div id="truck-list" class="truck-list">
+    <div class="small" style="padding: 20px; text-align: center;">Chargement des données...</div>
+  </div>
+</div>
+
+<div class="two-cols">
+  <div class="section">
+    <h2><i class="fas fa-boxes"></i> Stocks dépôts</h2>
+    <div id="depot-list" class="depot-list">
+      <div class="small" style="padding: 20px; text-align: center;">Chargement des données...</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i class="fas fa-charging-station"></i> Stations & capteurs</h2>
+    <div id="station-list" class="station-list">
+      <div class="small" style="padding: 20px; text-align: center;">Chargement des données...</div>
+    </div>
+  </div>
+</div>
+
+<div class="map-section">
+  <h2><i class="fas fa-map-marked-alt"></i> Géolocalisation en temps réel</h2>
+  <div class="map-container">
+    <div id="leaflet-map"></div>
+    <div class="map-legend">
+      <h4><i class="fas fa-layer-group"></i> Légende interactive</h4>
+      <div class="legend-item"><span class="legend-dot" style="background: #2563eb;"></span> Dépôt</div>
+      <div class="legend-item"><span class="legend-dot" style="background: #22c55e;"></span> Station OK</div>
+      <div class="legend-item"><span class="legend-dot" style="background: #f59e0b;"></span> Station Warning</div>
+      <div class="legend-item"><span class="legend-dot" style="background: #ef4444;"></span> Station Critique</div>
+      <div class="legend-item"><i class="fas fa-truck" style="color: #1f2937;"></i> Camion Transit</div>
+      <div class="legend-item"><i class="fas fa-truck" style="color: #f59e0b;"></i> Camion Stop</div>
+      <div class="legend-item"><i class="fas fa-truck" style="color: #ef4444;"></i> Camion Alerte</div>
+      <div class="legend-item"><i class="fas fa-truck" style="color: #3b82f6;"></i> Camion Arrivé</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Variables globales
+  let map;
+  let depotMarkers = [];
+  let stationMarkers = [];
+  let truckMarkers = [];
+  
+  // Fonctions utilitaires
+  function formatPercent(current, max) {
+    if (!max || max === 0) return 0;
+    return ((current / max) * 100).toFixed(1);
+  }
+
+  function updateTimestamp() {
+    const lastUpdateSpan = document.getElementById('last-update');
+    if (lastUpdateSpan) {
+      lastUpdateSpan.textContent = new Date().toLocaleTimeString('fr-FR');
+    }
+  }
+  
+  // Coordonnées des villes marocaines (simplifié)
+  const cityCoords = {
+    'Tanger': [35.7595, -5.8340],
+    'Tanger Med': [35.8833, -5.5000],
+    'Kénitra': [34.2610, -6.5802],
+    'Kenitra': [34.2610, -6.5802],
+    'Rabat': [34.0209, -6.8416],
+    'Mohammedia': [33.6861, -7.3826],
+    'Casablanca': [33.5731, -7.5898],
+    'El Jadida': [33.2565, -8.4990],
+    'Jadida': [33.2565, -8.4990],
+    'Fès': [34.0181, -5.0078],
+    'Fes': [34.0181, -5.0078],
+    'Meknès': [33.8935, -5.5547],
+    'Meknes': [33.8935, -5.5547],
+    'Marrakech': [31.6295, -7.9811],
+    'Marrakesh': [31.6295, -7.9811],
+    'Agadir': [30.4278, -9.5981],
+    'Oujda': [34.6861, -1.9115],
+    'Tétouan': [35.5785, -5.3684],
+    'Tetouan': [35.5785, -5.3684],
+    'Safi': [32.2994, -9.2372],
+    'Essaouira': [31.5125, -9.7699],
+    'Laâyoune': [27.1500, -13.2000],
+    'Laayoune': [27.1500, -13.2000],
+    'Dakhla': [23.6848, -15.9310]
+  };
+
+  // Helper functions
+  function getStationColor(volume) {
+    if (volume < 8000) return '#ef4444';
+    if (volume < 15000) return '#f59e0b';
+    return '#22c55e';
+  }
+
+  function getTruckColor(status) {
+    switch(status) {
+      case 'ALERT': return '#ef4444';
+      case 'STOPPED': return '#f59e0b';
+      case 'ARRIVED': return '#3b82f6';
+      case 'COMPLETED': return '#8b5cf6';
+      default: return '#1f2937';
+    }
+  }
+
+  function getCityCoordinates(cityName) {
+    if (!cityName) return null;
+    if (cityCoords[cityName]) return cityCoords[cityName];
+    const lowerCity = cityName.toLowerCase();
+    for (let [key, coords] of Object.entries(cityCoords)) {
+      if (key.toLowerCase() === lowerCity) return coords;
+    }
+    console.warn(`⚠️ Missing cityCoords for: "${cityName}"`);
+    return null;
+  }
+
+  function getStationRiskClass(volume) {
+    if (volume < 8000) return 'risk-CRITICAL';
+    if (volume < 15000) return 'risk-WARNING';
+    return 'risk-NORMAL';
+  }
+
+  // Création des icônes
+  function createTruckIcon(status, truckName) {
+    const color = getTruckColor(status);
+    let animationClass = '';
+    if (status === 'ALERT') animationClass = 'truck-alert';
+    else if (status === 'STOPPED') animationClass = 'truck-stopped';
+    else animationClass = 'truck-transit';
+    
+    const iconHtml = `
+      <div class="truck-icon ${animationClass}" style="position: relative; cursor: pointer;">
+        <i class="fas fa-truck" style="font-size: 24px; color: ${color}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></i>
+        <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: ${color}; color: white; font-size: 10px; padding: 2px 6px; border-radius: 12px; white-space: nowrap; font-weight: bold;">
+          ${truckName}
+        </div>
+      </div>
+    `;
+    return L.divIcon({ html: iconHtml, className: 'custom-truck-icon', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15] });
+  }
+
+  function createDepotIcon(cityName) {
+    const iconHtml = `
+      <div class="depot-marker-animated" style="position: relative;">
+        <i class="fas fa-warehouse" style="font-size: 22px; color: #2563eb; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></i>
+        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); background: #2563eb; color: white; font-size: 9px; padding: 2px 6px; border-radius: 12px; white-space: nowrap; font-weight: bold;">
+          ${cityName}
+        </div>
+      </div>
+    `;
+    return L.divIcon({ html: iconHtml, className: 'custom-depot-icon', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15] });
+  }
+
+  function createStationIcon(volume, cityName) {
+    const color = getStationColor(volume);
+    const size = volume < 8000 ? 28 : volume < 15000 ? 24 : 20;
+    const iconHtml = `
+      <div class="station-marker-animated" style="position: relative;">
+        <i class="fas fa-gas-pump" style="font-size: ${size}px; color: ${color}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></i>
+        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); background: ${color}; color: white; font-size: 9px; padding: 2px 6px; border-radius: 12px; white-space: nowrap; font-weight: bold;">
+          ${cityName}
+        </div>
+      </div>
+    `;
+    return L.divIcon({ html: iconHtml, className: 'custom-station-icon', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15] });
+  }
+
+  // Initialisation de la carte
+  function initMap() {
+    const mapElement = document.getElementById('leaflet-map');
+    if (!mapElement) {
+      console.error('Map container not found');
+      return;
+    }
+    map = L.map('leaflet-map').setView([31.8, -7.1], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CartoDB',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      minZoom: 5
+    }).addTo(map);
+    console.log('✅ Map initialized');
+  }
+
+  function clearMarkers() {
+    if (!map) return;
+    depotMarkers.forEach(m => map.removeLayer(m));
+    stationMarkers.forEach(m => map.removeLayer(m));
+    truckMarkers.forEach(m => map.removeLayer(m));
+    depotMarkers = [];
+    stationMarkers = [];
+    truckMarkers = [];
+  }
+
+  function renderDepots(depots) {
+    if (!map) return;
+    const uniqueDepots = new Map();
+    depots.forEach(depot => {
+      const key = `${depot.city}-${depot.depot}`;
+      if (!uniqueDepots.has(key)) uniqueDepots.set(key, depot);
+    });
+    
+    uniqueDepots.forEach(depot => {
+      const coords = getCityCoordinates(depot.city);
+      if (!coords) return;
+      
+      const percent = formatPercent(depot.current_volume, depot.max_capacity);
+      const icon = createDepotIcon(depot.city);
+      const marker = L.marker(coords, { icon }).bindPopup(`
+        <div style="font-family: 'Inter', sans-serif; min-width: 220px;">
+          <h4 style="margin: 0 0 8px 0; color: #2563eb;"><i class="fas fa-warehouse"></i> ${depot.depot}</h4>
+          <div><i class="fas fa-city"></i> <strong>Ville:</strong> ${depot.city}</div>
+          <div><i class="fas fa-oil-can"></i> <strong>Produit:</strong> ${depot.product}</div>
+          <div><i class="fas fa-droplet"></i> <strong>Stock:</strong> ${depot.current_volume.toLocaleString()} / ${depot.max_capacity.toLocaleString()} L</div>
+          <div><strong>Remplissage:</strong> ${percent}%</div>
+          <div style="margin-top: 8px; height: 6px; background: #e2e8f0; border-radius: 3px;"><div style="width: ${percent}%; height: 100%; background: ${percent < 20 ? '#ef4444' : percent < 40 ? '#f59e0b' : '#10b981'}; border-radius: 3px;"></div></div>
+        </div>
+      `);
+      marker.addTo(map);
+      depotMarkers.push(marker);
+    });
+  }
+
+  function renderStations(stations) {
+    if (!map) return;
+    stations.forEach(station => {
+      const coords = getCityCoordinates(station.city);
+      if (!coords) return;
+      
+      const icon = createStationIcon(station.current_volume, station.city);
+      const marker = L.marker(coords, { icon }).bindPopup(`
+        <div style="font-family: 'Inter', sans-serif; min-width: 260px;">
+          <h4 style="margin: 0 0 8px 0; color: ${getStationColor(station.current_volume)};"><i class="fas fa-charging-station"></i> ${station.station}</h4>
+          <div><i class="fas fa-city"></i> <strong>Ville:</strong> ${station.city}</div>
+          <div><i class="fas fa-oil-can"></i> <strong>Cuve:</strong> ${station.tank_name} · ${station.product}</div>
+          <div><i class="fas fa-droplet"></i> <strong>Stock:</strong> ${station.current_volume.toLocaleString()} L</div>
+          <div><i class="fas fa-thermometer-half"></i> <strong>Température:</strong> ${station.temperature}°C</div>
+          <div><i class="fas fa-water"></i> <strong>Eau:</strong> ${station.water_level}</div>
+          <div><i class="fas fa-microchip"></i> <strong>Capteur:</strong> <span style="color: ${station.sensor_status === 'OK' ? '#10b981' : station.sensor_status === 'WARNING' ? '#f59e0b' : '#ef4444'}">${station.sensor_status}</span></div>
+        </div>
+      `);
+      marker.addTo(map);
+      stationMarkers.push(marker);
+    });
+  }
+
+  function renderTrucks(trucks) {
+    if (!map) return;
+    trucks.forEach(truck => {
+      const lat = parseFloat(truck.latitude);
+      const lng = parseFloat(truck.longitude);
+      if (isNaN(lat) || isNaN(lng)) return;
+      
+      const icon = createTruckIcon(truck.status, truck.truck);
+      const marker = L.marker([lat, lng], { icon }).bindPopup(`
+        <div style="font-family: 'Inter', sans-serif; min-width: 280px;">
+          <h4 style="margin: 0 0 8px 0; color: ${getTruckColor(truck.status)};"><i class="fas fa-truck"></i> ${truck.status === 'ALERT' ? '⚠️ ' : ''}${truck.truck}</h4>
+          <div><strong>Statut:</strong> <span style="color: ${getTruckColor(truck.status)};">${truck.status}</span></div>
+          <div><i class="fas fa-map-marker-alt"></i> <strong>Position:</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
+          <div><i class="fas fa-tachometer-alt"></i> <strong>Vitesse:</strong> ${truck.speed} km/h</div>
+          <div><i class="fas fa-chart-line"></i> <strong>Progression:</strong> ${truck.progress}%</div>
+          ${truck.mission ? `<div style="background:#f3f4f6; padding:8px; border-radius:8px; margin-top:8px;"><i class="fas fa-route"></i> <strong>Mission:</strong><br>🏭 ${truck.mission.depot} → ⛽ ${truck.mission.station}</div>` : ''}
+          <div style="margin-top: 8px; height: 6px; background: #e2e8f0; border-radius: 3px;"><div style="width: ${truck.progress}%; height: 100%; background: ${getTruckColor(truck.status)}; border-radius: 3px;"></div></div>
+        </div>
+      `);
+      marker.addTo(map);
+      truckMarkers.push(marker);
+    });
+  }
+
+  function fitMapToBounds() {
+    if (!map) return;
+    const allMarkers = [...depotMarkers, ...stationMarkers, ...truckMarkers];
+    if (allMarkers.length === 0) {
+      map.setView([31.8, -7.1], 6);
+      return;
+    }
+    const bounds = L.latLngBounds([]);
+    allMarkers.forEach(m => bounds.extend(m.getLatLng()));
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+  }
+
+  function renderLeafletMap(data) {
+    if (!map) initMap();
+    clearMarkers();
+    if (data.depots && Array.isArray(data.depots)) renderDepots(data.depots);
+    if (data.stations && Array.isArray(data.stations)) renderStations(data.stations);
+    if (data.trucks && Array.isArray(data.trucks)) renderTrucks(data.trucks);
+    setTimeout(() => fitMapToBounds(), 100);
+  }
+
+  // Chargement des données live
+  async function loadLiveData() {
+    try {
+      console.log('Fetching data from /api/dashboard/live/');
+      const response = await fetch('/api/dashboard/live/');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      console.log('Data received:', data);
+      
+      // Mise à jour des compteurs
+      const truckCountElem = document.getElementById('truck-count');
+      if (truckCountElem) truckCountElem.textContent = data.trucks?.length || 0;
+      
+      const depotCountElem = document.getElementById('depot-count');
+      if (depotCountElem) depotCountElem.textContent = data.depots?.length || 0;
+      
+      const stationCountElem = document.getElementById('station-count');
+      if (stationCountElem) stationCountElem.textContent = data.stations?.length || 0;
+      
+      const alertCountElem = document.getElementById('alert-count');
+      if (alertCountElem) {
+        const alertCount = (data.trucks || []).filter(t => t.status === 'ALERT' || t.status === 'STOPPED').length;
+        alertCountElem.textContent = alertCount;
+      }
+      
+      // Rendu des listes avec fallback explicite
+      const truckList = document.getElementById('truck-list');
+      if (truckList) {
+        if (data.trucks && data.trucks.length > 0) {
+          truckList.innerHTML = data.trucks.map(truck => `
+            <div class="truck-item status-${truck.status}">
+              <div class="row"><strong><i class="fas fa-truck"></i> ${truck.truck}</strong><span class="badge-status">${truck.status === 'ALERT' ? '⚠️ ALERTE' : truck.status === 'STOPPED' ? '⏸️ STOP' : '🟢 EN COURS'}</span></div>
+              <div class="small"><i class="fas fa-route"></i> Mission: ${truck.mission ? truck.mission.depot + ' → ' + truck.mission.station : 'Aucune mission'}</div>
+              <div class="small"><i class="fas fa-oil-can"></i> Produit: ${truck.mission ? truck.mission.product : '-'} | ${truck.mission ? truck.mission.quantity : '-'} L</div>
+              <div class="small"><i class="fas fa-tachometer-alt"></i> ${truck.speed} km/h | ${truck.progress}%</div>
+              <progress value="${truck.progress}" max="100" style="width:100%; height:6px; border-radius:10px;"></progress>
+            </div>
+          `).join('');
+        } else {
+          truckList.innerHTML = '<div class="small" style="padding:20px;text-align:center;">Aucun camion actif</div>';
+        }
+      }
+      
+      const depotList = document.getElementById('depot-list');
+      if (depotList) {
+        if (data.depots && data.depots.length > 0) {
+          depotList.innerHTML = data.depots.map(depot => {
+            const percent = formatPercent(depot.current_volume, depot.max_capacity);
+            return `<div class="depot-item"><div class="row"><strong><i class="fas fa-building"></i> ${depot.depot}</strong><span style="color:${percent<20?'#ef4444':percent<40?'#f59e0b':'#10b981'}">${percent<20?'CRITIQUE':percent<40?'WARNING':'NORMAL'}</span></div>
+              <div class="small">${depot.city} | ${depot.product}</div>
+              <div class="small">Stock: ${depot.current_volume.toLocaleString()} / ${depot.max_capacity.toLocaleString()} L (${percent}%)</div>
+              <div style="background:#e2e8f0; border-radius:8px; height:6px;"><div style="width:${percent}%; background:${percent<20?'#ef4444':percent<40?'#f59e0b':'#10b981'}; height:6px; border-radius:8px;"></div></div>
+            </div>`;
+          }).join('');
+        } else {
+          depotList.innerHTML = '<div class="small" style="padding:20px;text-align:center;">Aucun dépôt</div>';
+        }
+      }
+      
+      const stationList = document.getElementById('station-list');
+      if (stationList) {
+        if (data.stations && data.stations.length > 0) {
+          stationList.innerHTML = data.stations.map(station => `
+            <div class="station-item ${getStationRiskClass(station.current_volume)}">
+              <div class="row"><strong><i class="fas fa-charging-station"></i> ${station.station}</strong><span class="sensor-${station.sensor_status}">${station.sensor_status}</span></div>
+              <div class="small">${station.city} · ${station.tank_name} · ${station.product}</div>
+              <div class="small">${station.temperature}°C · Eau: ${station.water_level}</div>
+              <div class="small"><strong>${station.current_volume.toLocaleString()} L</strong> restants</div>
+            </div>
+          `).join('');
+        } else {
+          stationList.innerHTML = '<div class="small" style="padding:20px;text-align:center;">Aucune station</div>';
+        }
+      }
+      
+      renderLeafletMap(data);
+      updateTimestamp();
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      const lastUpdate = document.getElementById('last-update');
+      if (lastUpdate) lastUpdate.textContent = 'Erreur de connexion';
+      // Optionally show error in lists
+      const truckList = document.getElementById('truck-list');
+      if (truckList) truckList.innerHTML = '<div class="small" style="padding:20px;text-align:center;">Erreur de connexion à l’API</div>';
+    }
+  }
+  
+  // Démarrage
+  initMap();
+  loadLiveData();
+  setInterval(loadLiveData, 5000);
+</script>
+{% endblock %}

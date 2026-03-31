@@ -1,0 +1,56 @@
+{% extends "logistics/base.html" %}
+{% block title %}Stations - Control Tower{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">Stations-service</h1>
+    <a href="{% url 'logistics:station_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nouvelle station
+    </a>
+</div>
+
+<form method="get" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="search" class="form-control" placeholder="Rechercher par nom, ville ou région..." value="{{ request.GET.search }}">
+        <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Ville</th>
+                <th>Région</th>
+                <th>Consommation (L/jour)</th>
+                <th>Risque</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for station in stations %}
+            <tr>
+                <td>{{ station.name }}</td>
+                <td>{{ station.city }}</td>
+                <td>{{ station.region }}</td>
+                <td>{{ station.daily_consumption }}</td>
+                <td>
+                    <span class="badge {% if station.risk_level == 'CRITICAL' %}bg-danger{% elif station.risk_level == 'WARNING' %}bg-warning{% else %}bg-success{% endif %}">
+                        {{ station.get_risk_level_display }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{% url 'logistics:station_detail' station.pk %}" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+                    <a href="{% url 'logistics:station_update' station.pk %}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+                    <a href="{% url 'logistics:station_delete' station.pk %}" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center">Aucune station trouvée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include "logistics/_pagination.html" %}
+{% endblock %}

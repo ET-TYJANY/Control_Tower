@@ -1,0 +1,77 @@
+{% extends "logistics/base.html" %}
+{% block title %}Camion {{ truck.matricule }} - Control Tower{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">Camion {{ truck.matricule }}</h1>
+    <div>
+        <a href="{% url 'logistics:truck_update' truck.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
+        <a href="{% url 'logistics:truck_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Informations générales</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Matricule :</th><td>{{ truck.matricule }}</td></tr>
+                    <tr><th>Transporteur :</th><td>{{ truck.transporter }}</td></tr>
+                    <tr><th>Marque / Modèle :</th><td>{{ truck.brand }} {{ truck.model }}</td></tr>
+                    <tr><th>Année :</th><td>{{ truck.year|default:"-" }}</td></tr>
+                    <tr><th>Chauffeur :</th><td>{{ truck.driver.name }}</td></tr>
+                    <tr><th>Statut :</th><td><span class="badge bg-secondary">{{ truck.get_status_display }}</span></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Capacités et carburant</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Capacité totale :</th><td>{{ truck.capacity_total }} L</td></tr>
+                    <tr><th>Nombre de compartiments :</th><td>{{ truck.max_compartment_count }}</td></tr>
+                    <tr><th>Réservoir carburant :</th><td>{{ truck.fuel_tank_capacity }} L</td></tr>
+                    <tr><th>Niveau carburant :</th><td>{{ truck.fuel_level }} L ({{ truck.get_fuel_percentage|floatformat:1 }}%)</td></tr>
+                    <tr><th>Consommation :</th><td>{{ truck.fuel_consumption_per_km }} L/km</td></tr>
+                    <tr><th>Autonomie restante :</th><td>{{ truck.get_remaining_fuel_range|floatformat:0 }} km</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Kilométrage et maintenance</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Kilométrage total :</th><td>{{ truck.total_odometer }} km</td></tr>
+                    <tr><th>Kilométrage trajet :</th><td>{{ truck.trip_odometer }} km</td></tr>
+                    <tr><th>Dernière maintenance :</th><td>{{ truck.last_maintenance|date:"d/m/Y"|default:"-" }}</td></tr>
+                    <tr><th>Prochaine maintenance :</th><td>{{ truck.next_maintenance_km }} km</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Dernière position</h5>
+            </div>
+            <div class="card-body">
+                <p>Latitude : {{ truck.current_lat }}<br>Longitude : {{ truck.current_lng }}</p>
+                <p>Dernière mise à jour : {{ truck.updated_at|date:"d/m/Y H:i:s" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

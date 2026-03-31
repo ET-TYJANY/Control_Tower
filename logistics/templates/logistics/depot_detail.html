@@ -1,0 +1,108 @@
+{% extends "logistics/base.html" %}
+{% block title %}Dépôt {{ depot.name }} - Control Tower{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">{{ depot.name }}</h1>
+    <div>
+        <a href="{% url 'logistics:depot_update' depot.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
+        <a href="{% url 'logistics:depot_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Informations générales</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Nom :</th><td>{{ depot.name }}</td></tr>
+                    <tr><th>Ville :</th><td>{{ depot.city }}</td></tr>
+                    <tr><th>Adresse :</th><td>{{ depot.address|linebreaksbr|default:"-" }}</td></tr>
+                    <tr><th>Coordonnées :</th><td>{{ depot.latitude }}, {{ depot.longitude }}</td></tr>
+                    <tr><th>Capacité totale :</th><td>{{ depot.capacity_total|floatformat:0 }} L</td></tr>
+                    <tr><th>Stock utilisé :</th><td>{{ depot.get_used_capacity|floatformat:0 }} L</td></tr>
+                    <tr><th>Disponible :</th><td>{{ depot.get_available_capacity|floatformat:0 }} L</td></tr>
+                    <tr><th>Remplissage :</th><td>{{ depot.get_fill_percentage|floatformat:1 }}%</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Stocks par produit</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th>Produit</th><th>Volume actuel (L)</th><th>Capacité max (L)</th><th>%</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in depot.product_stocks.all %}
+                            <tr>
+                                <td>{{ stock.get_product_display }}</td>
+                                <td>{{ stock.current_volume|floatformat:0 }}</td>
+                                <td>{{ stock.max_capacity|floatformat:0 }}</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar 
+                                    {% if stock.fill_percentage < 20 %}bg-danger
+                                    {% elif stock.fill_percentage < 40 %}bg-warning
+                                    {% else %}bg-success
+                                    {% endif %}"
+                                    style="width: {{ stock.fill_percentage|floatformat:0 }}%">
+                                        {{ stock.fill_percentage|floatformat:0 }}%
+                                    </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center">Aucun stock enregistré.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Arrivées récentes</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr><th>Produit</th><th>Volume prévu (L)</th><th>Volume reçu (L)</th><th>Date</th><th>Qualité</th></tr>
+                </thead>
+                <tbody>
+                    {% for arrival in depot.arrivals.all|slice:":10" %}
+                    <tr>
+                        <td>{{ arrival.get_product_display }}</td>
+                        <td>{{ arrival.planned_volume|floatformat:0 }}</td>
+                        <td>{{ arrival.received_volume|default:"-"|floatformat:0 }}</td>
+                        <td>{{ arrival.arrival_date|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if arrival.quality_status == 'APPROVED' %}
+                                <span class="badge bg-success">Approuvé</span>
+                            {% elif arrival.quality_status == 'REJECTED' %}
+                                <span class="badge bg-danger">Rejeté</span>
+                            {% else %}
+                                <span class="badge bg-secondary">En attente</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center">Aucune arrivée récente.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
